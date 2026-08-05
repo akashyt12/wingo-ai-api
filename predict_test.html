@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WinGo AI - Live Prediction</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#f0f0f5;min-height:100vh;padding:16px;max-width:480px;margin:0 auto}
+h1{text-align:center;margin-bottom:16px;color:#10b981;font-size:22px}
+.card{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:14px;margin-bottom:12px}
+.label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;transition:all .3s}
+.btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-blue{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff}
+.btn-red{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.result{background:#0a0a0f;border:1px solid #1e1e2e;border-radius:10px;padding:12px;font-family:'Courier New',monospace;font-size:12px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+
+.pred-box{text-align:center;padding:24px 0}
+.pred-label{font-size:11px;color:#6b7280;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.pred-number{font-size:100px;font-weight:800;font-family:'Courier New',monospace;line-height:1;transition:all .3s}
+.pred-number.big{color:#10b981;text-shadow:0 0 40px rgba(16,185,129,.4)}
+.pred-number.small{color:#ef4444;text-shadow:0 0 40px rgba(239,68,68,.4)}
+.pred-info{font-size:14px;color:#6b7280;margin-top:8px}
+.pred-confidence{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:8px}
+.pred-confidence.high{background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3)}
+.pred-confidence.low{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+
+.votes{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:12px}
+.vc{padding:6px;text-align:center;background:#0a0a0f;border:1px solid #1e1e2e;border-radius:8px}
+.vc .vn{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.vc .vs{font-size:11px;font-weight:700;margin-top:2px;font-family:'Courier New',monospace}
+.vc .vs.big{color:#10b981}.vc .vs.small{color:#ef4444}
+
+.history{display:flex;gap:4px;flex-wrap:wrap}
+.hi{min-width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.hi.big{background:rgba(16,185,129,.2);color:#10b981;border:1px solid rgba(16,185,129,.3)}
+.hi.small{background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+
+.status-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#12121a;border:1px solid #1e1e2e;border-radius:10px;margin-bottom:12px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#4b5563;margin-right:8px}
+.status-dot.on{background:#10b981;box-shadow:0 0 8px #10b981}
+.status-text{font-size:12px;color:#6b7280}
+.status-text strong{color:#10b981}
+
+.countdown{text-align:center;font-size:11px;color:#6b7280;letter-spacing:1px;margin-top:8px}
+.countdown span{color:#10b981;font-weight:700;font-size:14px}
+</style>
+</head>
+<body>
+
+<h1>WinGo AI Predictor</h1>
+
+<div class="status-bar">
+  <div style="display:flex;align-items:center">
+    <div class="status-dot" id="sDot"></div>
+    <span class="status-text" id="sText">Connecting...</span>
+  </div>
+  <span class="status-text" id="sRecs">--</span>
+</div>
+
+<div class="card">
+  <div class="label">AI Prediction</div>
+  <div class="pred-box">
+    <div class="pred-label">Next Number</div>
+    <div class="pred-number" id="predNum">?</div>
+    <div class="pred-info" id="predInfo">Click "Get Prediction" to start</div>
+    <div class="pred-confidence" id="predConf"></div>
+    <div class="countdown" id="countdown"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">Model Votes</div>
+  <div class="votes">
+    <div class="vc"><div class="vn">Patterns</div><div class="vs" id="vP">--</div></div>
+    <div class="vc"><div class="vn">RF</div><div class="vs" id="vRF">--</div></div>
+    <div class="vc"><div class="vn">GB</div><div class="vs" id="vGB">--</div></div>
+    <div class="vc"><div class="vn">MLP</div><div class="vs" id="vMLP">--</div></div>
+  </div>
+  <div class="votes" style="margin-top:4px">
+    <div class="vc"><div class="vn">Freq5</div><div class="vs" id="vF5">--</div></div>
+    <div class="vc"><div class="vn">Freq8</div><div class="vs" id="vF8">--</div></div>
+    <div class="vc"><div class="vn">Freq12</div><div class="vs" id="vF12">--</div></div>
+    <div class="vc"><div class="vn">Freq20</div><div class="vs" id="vF20">--</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">Recent Results</div>
+  <div class="history" id="histBox">Loading...</div>
+</div>
+
+<div style="display:flex;gap:8px">
+  <button class="btn btn-green" onclick="getPrediction()" id="btnPred">Get Prediction</button>
+  <button class="btn btn-blue" onclick="startAuto()" id="btnAuto">Auto (30s)</button>
+</div>
+<button class="btn btn-red" onclick="stopAuto()" id="btnStop" style="display:none">Stop Auto</button>
+
+<div class="card">
+  <div class="label">Log</div>
+  <div class="result" id="logBox">Ready...</div>
+</div>
+
+<script>
+const API = 'https://wingo-ai-api-production.up.railway.app';
+let autoInterval = null;
+let countdownInterval = null;
+let lastNumbers = [];
+
+function log(msg) {
+  const el = document.getElementById('logBox');
+  const time = new Date().toLocaleTimeString();
+  el.innerHTML = `<div><span style="color:#6b7280">[${time}]</span> ${msg}</div>` + el.innerHTML;
+  if (el.children.length > 30) el.lastChild.remove();
+}
+
+function setNumber(n, size) {
+  const el = document.getElementById('predNum');
+  el.textContent = n;
+  el.className = 'pred-number ' + size;
+}
+
+function setVotes(models) {
+  const map = {'Patterns':'vP','RF':'vRF','GB':'vGB','MLP':'vMLP','Freq5':'vF5','Freq8':'vF8','Freq12':'vF12','Freq20':'vF20'};
+  models.forEach(m => {
+    const el = document.getElementById(map[m.name]);
+    if (el) {
+      el.textContent = m.size.toUpperCase();
+      el.className = 'vs ' + m.size;
+    }
+  });
+}
+
+function setHistory(history) {
+  const box = document.getElementById('histBox');
+  box.innerHTML = history.slice(-20).reverse().map(h => {
+    const s = h.number >= 5 ? 'big' : 'small';
+    return `<div class="hi ${s}">${h.number}</div>`;
+  }).join('');
+}
+
+async function getPrediction() {
+  try {
+    document.getElementById('btnPred').disabled = true;
+    document.getElementById('btnPred').textContent = 'Loading...';
+    log('Fetching latest data...');
+
+    // Step 1: Fetch latest data
+    const fetchRes = await fetch(API + '/fetch_latest');
+    const fetchData = await fetchRes.json();
+    log('Records: ' + fetchData.total_records);
+
+    if (fetchData.history) setHistory(fetchData.history);
+    if (fetchData.last_numbers) lastNumbers = fetchData.last_numbers;
+
+    // Step 2: Get prediction
+    log('Getting prediction...');
+    const predRes = await fetch(API + '/predict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({last_numbers: lastNumbers})
+    });
+    const pred = await predRes.json();
+
+    // Show result
+    const size = pred.size || 'small';
+    setNumber(pred.number, size);
+    document.getElementById('predInfo').textContent = pred.message || `${size.toUpperCase()} (${pred.agree_count}/${pred.total_votes} agree)`;
+
+    const conf = pred.confidence || 0;
+    const confEl = document.getElementById('predConf');
+    confEl.textContent = `Confidence: ${conf}%`;
+    confEl.className = 'pred-confidence ' + (conf >= 60 ? 'high' : 'low');
+
+    if (pred.models_voted) setVotes(pred.models_voted);
+
+    log(`PREDICT: ${pred.number} (${size.toUpperCase()}) | ${pred.message}`);
+  } catch(e) {
+    log('ERROR: ' + e.message);
+  } finally {
+    document.getElementById('btnPred').disabled = false;
+    document.getElementById('btnPred').textContent = 'Get Prediction';
+  }
+}
+
+function startAuto() {
+  getPrediction();
+  autoInterval = setInterval(getPrediction, 30000);
+  document.getElementById('btnAuto').style.display = 'none';
+  document.getElementById('btnStop').style.display = 'block';
+  log('Auto mode ON (30s)');
+  startCountdown();
+}
+
+function stopAuto() {
+  clearInterval(autoInterval);
+  clearInterval(countdownInterval);
+  document.getElementById('btnAuto').style.display = 'block';
+  document.getElementById('btnStop').style.display = 'none';
+  document.getElementById('countdown').innerHTML = '';
+  log('Auto mode OFF');
+}
+
+function startCountdown() {
+  let sec = 30;
+  document.getElementById('countdown').innerHTML = `Next prediction in <span id="cdSec">${sec}</span>s`;
+  clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    sec--;
+    const el = document.getElementById('cdSec');
+    if (el) el.textContent = sec;
+    if (sec <= 0) sec = 30;
+  }, 1000);
+}
+
+async function checkStatus() {
+  try {
+    const res = await fetch(API + '/status');
+    const s = await res.json();
+    document.getElementById('sDot').className = 'status-dot on';
+    document.getElementById('sText').innerHTML = `Models: <strong>${s.models_loaded ? 'Loaded' : 'Not loaded'}</strong>`;
+    document.getElementById('sRecs').innerHTML = `<strong>${s.total_records}</strong> records`;
+  } catch(e) {
+    document.getElementById('sDot').className = 'status-dot';
+    document.getElementById('sText').innerHTML = 'Offline';
+  }
+}
+
+checkStatus();
+setInterval(checkStatus, 10000);
+log('Connected to API');
+</script>
+</body>
+</html>

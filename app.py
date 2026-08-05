@@ -850,7 +850,6 @@ async function autoStart(){
 }
 
 connSSE();poll();setInterval(poll,3000);
-autoStart();
 </script>
 </body>
 </html>'''
@@ -966,6 +965,7 @@ def last_result():
 def live_loop():
     log(f"Live ON! ({ai.live_interval}s polling)","success")
     csv = "wingo_history.csv"
+    api_fails = 0
     if not os.path.exists(f'{MODEL_DIR}/rf_opt.pkl'):
         csv_ready = ensure_csv_ready()
         if csv_ready: csv = csv_ready
@@ -983,40 +983,53 @@ def live_loop():
             if not os.path.exists(csv):
                 time.sleep(ai.live_interval)
                 continue
-            nd = fetch_history(GAME_CODE, PAGE_SIZE, 2)
-            if nd is not None and not nd.empty:
-                m = merge_csv(csv, nd)
-                rn = m['number'].values[-LOOKBACK:].astype(int).tolist()
-                iss = m['issueNumber'].values[-1]
-                actual = rn[-1]
-                last_actual = {"number": actual, "issue": str(iss)}
-                cur_issue_num = int(iss) if iss.isdigit() else 0
-                if last is None or iss != last:
-                    if predicted_size is not None and last_issue_num is not None:
-                        actual_size = "big" if actual >= 5 else "small"
-                        if predicted_size == "skip":
-                            log(f"SKIPPED | Actual={actual}({actual_size})","info")
-                        elif predicted_size == actual_size:
-                            ai.stats["wins"] += 1
-                            ai.stats["total"] += 1
-                            ai.stats["accuracy"] = round((ai.stats["wins"]/ai.stats["total"])*100,1)
-                            log(f"WIN! Pred={predicted_size} = Actual={actual_size} | Actual={actual}","success")
-                        else:
-                            ai.stats["losses"] += 1
-                            ai.stats["total"] += 1
-                            ai.stats["accuracy"] = round((ai.stats["wins"]/ai.stats["total"])*100,1)
-                            log(f"LOSS! Pred={predicted_size} != Actual={actual_size} | Actual={actual}","error")
-                    if len(rn) >= LOOKBACK and ai.ready:
-                        p = ai.predict(rn)
-                        if p.get("skip", False):
-                            predicted_size = "skip"
-                            log(f"SKIP ({p.get('agree_count',0)}/{p.get('total_votes',0)} agree)","info")
-                        else:
-                            predicted_size = p['size']
-                            predicted_seq = rn
-                            log(f"PREDICT: {p['size'].upper()} ({p.get('agree_count',0)}/{p.get('total_votes',0)} agree)","success")
-                        last_issue_num = cur_issue_num
-                    last = iss
+            nd = None
+            if api_fails < 3:
+                nd = fetch_history(GAME_CODE, PAGE_SIZE, 2)
+                if nd is None or nd.empty:
+                    api_fails += 1
+                    log(f"API blocked ({api_fails}/3) - using cached data", "info")
+                else:
+                    api_fails = 0
+                    m = merge_csv(csv, nd)
+                    csv_data = m
+            else:
+                try:
+                    csv_data = pd.read_csv(csv, dtype={'issueNumber': str})
+                except:
+                    time.sleep(ai.live_interval)
+                    continue
+            rn = csv_data['number'].values[-LOOKBACK:].astype(int).tolist()
+            iss = csv_data['issueNumber'].values[-1]
+            actual = rn[-1]
+            last_actual = {"number": actual, "issue": str(iss)}
+            cur_issue_num = int(iss) if str(iss).isdigit() else 0
+            if last is None or iss != last:
+                if predicted_size is not None and last_issue_num is not None:
+                    actual_size = "big" if actual >= 5 else "small"
+                    if predicted_size == "skip":
+                        log(f"SKIPPED | Actual={actual}({actual_size})","info")
+                    elif predicted_size == actual_size:
+                        ai.stats["wins"] += 1
+                        ai.stats["total"] += 1
+                        ai.stats["accuracy"] = round((ai.stats["wins"]/ai.stats["total"])*100,1)
+                        log(f"WIN! Pred={predicted_size} = Actual={actual_size} | Actual={actual}","success")
+                    else:
+                        ai.stats["losses"] += 1
+                        ai.stats["total"] += 1
+                        ai.stats["accuracy"] = round((ai.stats["wins"]/ai.stats["total"])*100,1)
+                        log(f"LOSS! Pred={predicted_size} != Actual={actual_size} | Actual={actual}","error")
+                if len(rn) >= LOOKBACK and ai.ready:
+                    p = ai.predict(rn)
+                    if p.get("skip", False):
+                        predicted_size = "skip"
+                        log(f"SKIP ({p.get('agree_count',0)}/{p.get('total_votes',0)} agree)","info")
+                    else:
+                        predicted_size = p['size']
+                        predicted_seq = rn
+                        log(f"PREDICT: {p['size'].upper()} ({p.get('agree_count',0)}/{p.get('total_votes',0)} agree)","success")
+                    last_issue_num = cur_issue_num
+                last = iss
             time.sleep(ai.live_interval)
         except Exception as e:
             log(f"Live error: {e}","error"); time.sleep(3)
