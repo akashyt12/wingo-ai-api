@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WinGo AI API Test</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#f0f0f5;min-height:100vh;padding:20px;max-width:600px;margin:0 auto}
+h1{text-align:center;margin-bottom:20px;color:#10b981;font-size:24px}
+.card{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:16px;margin-bottom:16px}
+.label{font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;transition:all .3s}
+.btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-green:hover{box-shadow:0 0 20px rgba(16,185,129,.4)}
+.btn-blue{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff}
+.btn-blue:hover{box-shadow:0 0 20px rgba(59,130,246,.4)}
+.btn-red{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.btn-red:hover{box-shadow:0 0 20px rgba(239,68,68,.4)}
+.btn:active{transform:scale(.97)}
+.result{background:#0a0a0f;border:1px solid #1e1e2e;border-radius:10px;padding:14px;font-family:'Courier New',monospace;font-size:13px;max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.status{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:#4b5563}
+.dot.online{background:#10b981;box-shadow:0 0 10px #10b981}
+.prediction{text-align:center;padding:20px}
+.prediction .size{font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:2px}
+.prediction .number{font-size:80px;font-weight:800;font-family:'Courier New',monospace;line-height:1}
+.prediction .big{color:#10b981}
+.prediction .small{color:#ef4444}
+.prediction .info{font-size:13px;color:#6b7280;margin-top:8px}
+.history{display:flex;gap:6px;flex-wrap:wrap}
+.history-item{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.history-item.big{background:rgba(16,185,129,.2);color:#10b981;border:1px solid rgba(16,185,129,.3)}
+.history-item.small{background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.loading{opacity:.5;pointer-events:none}
+</style>
+</head>
+<body>
+
+<h1>WinGo AI API Test</h1>
+
+<div class="status">
+  <div class="dot" id="statusDot"></div>
+  <span id="statusText">Checking...</span>
+</div>
+
+<div class="card">
+  <div class="label">API Status</div>
+  <div class="result" id="statusResult">Loading...</div>
+  <button class="btn btn-blue" onclick="checkStatus()">Check Status</button>
+</div>
+
+<div class="card">
+  <div class="label">Fetch Latest Data</div>
+  <button class="btn btn-green" onclick="fetchData()">Fetch Data</button>
+  <div class="result" id="fetchResult">Click to fetch...</div>
+</div>
+
+<div class="card">
+  <div class="label">Start Training</div>
+  <button class="btn btn-blue" onclick="startTraining()">Start Training</button>
+  <div class="result" id="trainResult">Click to train...</div>
+</div>
+
+<div class="card">
+  <div class="label">Start Live Mode</div>
+  <button class="btn btn-green" onclick="startLive(30)">Start 30s</button>
+  <button class="btn btn-green" onclick="startLive(60)">Start 1min</button>
+  <button class="btn btn-red" onclick="stopLive()">Stop Live</button>
+  <div class="result" id="liveResult">Click to start...</div>
+</div>
+
+<div class="card">
+  <div class="label">Prediction</div>
+  <button class="btn btn-green" onclick="getPrediction()">Get Prediction</button>
+  <div class="prediction" id="predictionBox">
+    <div class="size">--</div>
+    <div class="number">?</div>
+    <div class="info">Click to predict</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">History (Last 20)</div>
+  <div class="history" id="historyBox">Loading...</div>
+</div>
+
+<script>
+const API = 'https://wingo-ai-api-production.up.railway.app';
+
+async function api(url, method='GET', body=null) {
+  const opts = {method, headers:{'Content-Type':'application/json'}};
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + url, opts);
+  return await res.json();
+}
+
+function log(elId, data) {
+  document.getElementById(elId).textContent = JSON.stringify(data, null, 2);
+}
+
+async function checkStatus() {
+  try {
+    const data = await api('/status');
+    log('statusResult', data);
+    document.getElementById('statusDot').className = 'dot online';
+    document.getElementById('statusText').textContent = 'Online - ' + data.total_records + ' records';
+  } catch(e) {
+    log('statusResult', {error: e.message});
+    document.getElementById('statusDot').className = 'dot';
+    document.getElementById('statusText').textContent = 'Offline';
+  }
+}
+
+async function fetchData() {
+  try {
+    document.getElementById('fetchResult').textContent = 'Fetching...';
+    const data = await api('/fetch_latest');
+    log('fetchResult', data);
+  } catch(e) {
+    log('fetchResult', {error: e.message});
+  }
+}
+
+async function startTraining() {
+  try {
+    document.getElementById('trainResult').textContent = 'Starting training...';
+    const data = await api('/train', 'POST');
+    log('trainResult', data);
+  } catch(e) {
+    log('trainResult', {error: e.message});
+  }
+}
+
+async function startLive(interval) {
+  try {
+    document.getElementById('liveResult').textContent = 'Starting live ' + interval + 's...';
+    const data = await api('/live', 'POST', {interval: interval});
+    log('liveResult', data);
+  } catch(e) {
+    log('liveResult', {error: e.message});
+  }
+}
+
+async function stopLive() {
+  try {
+    const data = await api('/live_stop', 'POST');
+    log('liveResult', data);
+  } catch(e) {
+    log('liveResult', {error: e.message});
+  }
+}
+
+async function getPrediction() {
+  try {
+    // Get history first
+    const hist = await api('/history');
+    if(hist.history && hist.history.length >= 10) {
+      const last10 = hist.history.slice(-10).map(h => h.number);
+      const data = await api('/predict', 'POST', {last_numbers: last10});
+      
+      const box = document.getElementById('predictionBox');
+      const isBig = data.size === 'big';
+      box.innerHTML = `
+        <div class="size ${isBig ? 'big' : 'small'}">${data.size.toUpperCase()}</div>
+        <div class="number ${isBig ? 'big' : 'small'}">${data.number}</div>
+        <div class="info">${data.message}</div>
+        <div class="info">Confidence: ${data.confidence}%</div>
+      `;
+    } else {
+      document.getElementById('predictionBox').innerHTML = '<div class="info">Need more history data. Click "Fetch Data" first.</div>';
+    }
+  } catch(e) {
+    document.getElementById('predictionBox').innerHTML = '<div class="info">Error: ' + e.message + '</div>';
+  }
+}
+
+async function loadHistory() {
+  try {
+    const data = await api('/history');
+    if(data.history && data.history.length > 0) {
+      const last20 = data.history.slice(-20).reverse();
+      document.getElementById('historyBox').innerHTML = last20.map(h => {
+        const isBig = h.number >= 5;
+        return `<div class="history-item ${isBig ? 'big' : 'small'}">${h.number}</div>`;
+      }).join('');
+    } else {
+      document.getElementById('historyBox').textContent = 'No history yet';
+    }
+  } catch(e) {
+    document.getElementById('historyBox').textContent = 'Error loading';
+  }
+}
+
+// Auto check status
+checkStatus();
+loadHistory();
+setInterval(loadHistory, 30000);
+</script>
+</body>
+</html>

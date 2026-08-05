@@ -976,11 +976,12 @@ def live_loop():
 
 if __name__ == '__main__':
     import sys
+    port = int(os.environ.get('PORT', 5000))
     if len(sys.argv) > 1 and sys.argv[1] == '--live':
         ai.is_live = True
         threading.Thread(target=live_loop, daemon=True).start()
     print("\n" + "="*50)
     print("  WinGo AI Pro v4 - Ensemble (Freq+Pattern+RF)")
-    print("  http://localhost:5000")
+    print(f"  http://localhost:{port}")
     print("="*50 + "\n")
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
