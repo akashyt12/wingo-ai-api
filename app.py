@@ -9,7 +9,7 @@ from flask import Flask, request, jsonify, Response
 GAME_CODE = "WinGo_1M"
 LOOKBACK = 10
 MODEL_DIR = "models_wingo"
-PAGE_SIZE = 50
+PAGE_SIZE = 10
 FETCH_INTERVAL = 1
 API_BASE = "https://draw.ar-lottery01.com/WinGo"
 NUM_FEATURES = 30
