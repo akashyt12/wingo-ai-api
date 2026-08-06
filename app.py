@@ -94,10 +94,11 @@ def ensure_csv_ready():
     if os.path.exists(csv):
         try:
             df = pd.read_csv(csv, dtype={'issueNumber': str})
-            if len(df) > 50:
-                log(f"CSV ready: {len(df)} records", "info")
+            if len(df) > 100:
+                log(f"CSV ready: {len(df)} records", "success")
                 return csv
-        except: pass
+        except Exception as e:
+            log(f"CSV read error: {e}", "error")
     log("Fetching from API...", "info")
     df = fetch_history(GAME_CODE, 50, 10)
     if df is not None and len(df) > 0:
